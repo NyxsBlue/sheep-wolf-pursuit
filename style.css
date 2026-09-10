@@ -1,0 +1,33 @@
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #1e1e1e;
+  font-family: sans-serif;
+}
+
+#grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(10, 1fr);
+  width: min(90vw, 90vh);
+  height: min(90vw, 90vh);
+  border: 2px solid #444;
+}
+
+.cell {
+  border: 1px solid #333;
+  background-color: #3a5f3a;
+}
+
+#turn-indicator {
+  position: fixed;
+  top: 12px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #eee;
+  font-size: 1.2rem;
+}
