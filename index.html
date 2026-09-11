@@ -6,21 +6,38 @@
     <title>Sheep vs Wolf</title>
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-  <div id="difficulty-bar">
+  <div id="landing-screen">
+    <h1>Sheep vs Wolf</h1>
+    <p class="rules">
+      You are the sheep 🐑. Move with arrow keys to collect grass 🌱 before the wolf 🐺 catches you.
+      Turn-based: you move, then the wolf moves. Obstacles 🌳 block movement for both of you.
+      Collect all the grass to win — get caught and it's over.
+    </p>
     <label for="difficulty">Wolf AI:</label>
     <select id="difficulty">
       <option value="easy">Easy (Greedy BFS)</option>
       <option value="medium">Medium (Minimax)</option>
       <option value="hard">Hard (Optimal)</option>
     </select>
+    <br>
+    <button id="play-button">Play</button>
   </div>
-  <div id="turn-indicator"></div>
-  <div id="grid"></div>
+    <div id="game-screen" class="hidden">
+    <div id="turn-indicator"></div>
+    <button id="hint-button">Answer a question (+3 moves)</button>
+    <div id="grid"></div>
+  </div>
+
+  <div id="quiz-modal" class="hidden">
+    <div id="quiz-box">
+      <p id="quiz-question"></p>
+      <div id="quiz-options"></div>
+    </div>
+  </div>
 
   <script src="wolf-ai.js" defer></script>
+  <script src="quiz.js" defer></script>
   <script src="game.js" defer></script>
 </body>
-
 </html>

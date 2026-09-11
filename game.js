@@ -4,6 +4,7 @@ const GRID_SIZE = 10;
 const GRASS_COUNT = 10;
 const OBSTACLE_COUNT = 8;
 const MIN_START_DISTANCE = 4;
+const MOVE_LIMIT = 20;
 
 const state = {
   sheep: { row: 0, col: 0 },
@@ -13,7 +14,12 @@ const state = {
   score: 0,
   turn: 'sheep',
   gameOver: false,
-  won: false
+  endReason: null,   // 'captured' | 'outOfMoves' | 'won'
+  started: false,
+  movesRemaining: MOVE_LIMIT,
+  quizOpen: false,
+  difficulty: 'easy',
+  hintsUsed: 0
 };
 
 function renderGrid() {
@@ -113,20 +119,29 @@ function renderTokens() {
 function renderTurnIndicator() {
   const indicator = document.getElementById('turn-indicator');
   if (state.gameOver) {
-    indicator.textContent = state.won ? '🎉 You win! All grass eaten.' : 'Game over — captured!';
+    if (state.endReason === 'won') {
+      indicator.textContent = `🎉 You win! All grass eaten. Final score: ${state.score}/${GRASS_COUNT}`;
+    } else if (state.endReason === 'captured') {
+      indicator.textContent = `Game over — captured! Final score: ${state.score}/${GRASS_COUNT}`;
+    } else if (state.endReason === 'outOfMoves') {
+      indicator.textContent = `Out of moves. Final score: ${state.score}/${GRASS_COUNT}`;
+    }  else if (state.endReason === 'quizFailed') {
+      indicator.textContent = `Wrong answer — game over! Final score: ${state.score}/${GRASS_COUNT}`;
+    }
   } else {
-    indicator.textContent = `🌱 ${state.score}/${GRASS_COUNT} — Turn: ${state.turn === 'sheep' ? '🐑 Sheep (you)' : '🐺 Wolf'}`;
+    indicator.textContent = `🌱 ${state.score}/${GRASS_COUNT} — 🐾 ${state.movesRemaining} moves left — Turn: ${state.turn === 'sheep' ? '🐑 Sheep (you)' : '🐺 Wolf'}`;
   }
 }
 
-function endGame(won) {
+
+function endGame(reason) {
   state.gameOver = true;
-  state.won = won;
+  state.endReason = reason;
   renderTurnIndicator();
 }
 
 function moveSheep(deltaRow, deltaCol) {
-  if (state.gameOver || state.turn !== 'sheep') return;
+  if (!state.started || state.gameOver || state.turn !== 'sheep' || state.quizOpen) return;
 
   const newRow = state.sheep.row + deltaRow;
   const newCol = state.sheep.col + deltaCol;
@@ -141,11 +156,12 @@ function moveSheep(deltaRow, deltaCol) {
 
   state.sheep.row = newRow;
   state.sheep.col = newCol;
+  state.movesRemaining--;
 
   // Capture check: sheep stepped onto the wolf
   if (state.sheep.row === state.wolf.row && state.sheep.col === state.wolf.col) {
     renderTokens();
-    endGame(false);
+    endGame('captured');
     return;
   }
 
@@ -157,9 +173,15 @@ function moveSheep(deltaRow, deltaCol) {
     if (state.score === GRASS_COUNT) {
       renderTokens();
       renderTurnIndicator();
-      endGame(true);
+      endGame('won');
       return;
     }
+  }
+
+  if (state.movesRemaining <= 0) {
+    renderTokens();
+    endGame('outOfMoves');
+    return;
   }
 
   state.turn = 'wolf';
@@ -186,7 +208,7 @@ function moveSheep(deltaRow, deltaCol) {
     // Capture check: wolf stepped onto the sheep
     if (state.wolf.row === state.sheep.row && state.wolf.col === state.sheep.col) {
     renderTokens();
-    endGame(false);
+    endGame('captured');
     return;
     }
 }
@@ -212,9 +234,29 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-renderGrid();
-setupObstaclesAndSolve();
-placeSheepAndWolf();
-placeGrass();
-renderTokens();
-renderTurnIndicator();
+function startGame() {
+  state.started = true;
+  state.gameOver = false;
+  state.endReason = null;
+  state.score = 0;
+  state.movesRemaining = MOVE_LIMIT;
+  state.quizOpen = false;
+  usedQuestionIndices = [];
+  state.difficulty = document.getElementById('difficulty').value;
+  state.hintsUsed = 0;
+
+  renderGrid();
+  setupObstaclesAndSolve();
+  placeSheepAndWolf();
+  placeGrass();
+  renderTokens();
+  renderTurnIndicator();
+  updateHintButton();
+}
+
+document.getElementById('play-button').addEventListener('click', () => {
+  document.getElementById('landing-screen').classList.add('hidden');
+  document.getElementById('game-screen').classList.remove('hidden');
+  startGame();
+});
+document.getElementById('hint-button').addEventListener('click', openHintModal);
