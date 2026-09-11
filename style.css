@@ -1,9 +1,11 @@
 body {
   margin: 0;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+  gap: 10px;
   background: #1e1e1e;
   font-family: sans-serif;
 }
@@ -23,11 +25,12 @@ body {
 }
 
 #turn-indicator {
-  position: fixed;
-  top: 12px;
-  left: 0;
-  right: 0;
   text-align: center;
   color: #eee;
   font-size: 1.2rem;
+}
+
+#difficulty-bar {
+  color: #eee;
+  font-size: 14px;
 }

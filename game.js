@@ -1,10 +1,12 @@
 const GRID_SIZE = 10;
 const GRASS_COUNT = 6;
+const OBSTACLE_COUNT = 8;
 
 const state = {
   sheep: { row: Math.floor(GRID_SIZE / 2), col: Math.floor(GRID_SIZE / 2) },
   wolf: { row: 0, col: 0 },
-  grass: [],            // array of {row, col}
+  grass: [],
+  obstacles: [],          // <-- new
   score: 0,
   turn: 'sheep',
   gameOver: false,
@@ -32,7 +34,18 @@ function getCell(row, col) {
 
 function isOccupied(row, col) {
   return (state.sheep.row === row && state.sheep.col === col) ||
-         (state.wolf.row === row && state.wolf.col === col);
+         (state.wolf.row === row && state.wolf.col === col) ||
+         state.obstacles.some(o => o.row === row && o.col === col);
+}
+
+function placeObstacles() {
+  state.obstacles = [];
+  while (state.obstacles.length < OBSTACLE_COUNT) {
+    const row = Math.floor(Math.random() * GRID_SIZE);
+    const col = Math.floor(Math.random() * GRID_SIZE);
+    if (isOccupied(row, col)) continue;
+    state.obstacles.push({ row, col });
+  }
 }
 
 function placeGrass() {
@@ -48,7 +61,9 @@ function placeGrass() {
 
 function renderTokens() {
   document.querySelectorAll('.cell').forEach(cell => cell.textContent = '');
-
+  for (const o of state.obstacles) {
+    getCell(o.row, o.col).textContent = '🌳';
+  }
   for (const g of state.grass) {
     getCell(g.row, g.col).textContent = '🌱';
   }
@@ -81,6 +96,10 @@ function moveSheep(deltaRow, deltaCol) {
     return;
   }
 
+  if (state.obstacles.some(o => o.row === newRow && o.col === newCol)) {
+    return; // blocked by obstacle
+  }
+
   state.sheep.row = newRow;
   state.sheep.col = newCol;
 
@@ -111,7 +130,10 @@ function moveSheep(deltaRow, deltaCol) {
   setTimeout(() => {
   if (state.gameOver) return;
 
-  const wolfMove = computeWolfMove(GRID_SIZE, state.wolf, state.sheep);
+  const difficulty = document.getElementById('difficulty').value;
+  const wolfMove = difficulty === 'medium'
+    ? computeWolfMoveMinimax(GRID_SIZE, state.wolf, state.sheep, state.obstacles, 5)
+    : computeWolfMove(GRID_SIZE, state.wolf, state.sheep, state.obstacles);
   if (wolfMove) {
     state.wolf.row = wolfMove.row;
     state.wolf.col = wolfMove.col;
@@ -141,6 +163,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 renderGrid();
+placeObstacles();
 placeGrass();
 renderTokens();
 renderTurnIndicator();

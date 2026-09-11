@@ -6,11 +6,20 @@
     <title>Sheep vs Wolf</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div id="turn-indicator"></div>
-    <div id="grid"></div>
 
-    <script src="wolf-ai.js" defer></script>
-    <script src="game.js" defer></script>
+<body>
+  <div id="difficulty-bar">
+    <label for="difficulty">Wolf AI:</label>
+    <select id="difficulty">
+      <option value="easy">Easy (Greedy BFS)</option>
+      <option value="medium">Medium (Minimax)</option>
+    </select>
+  </div>
+  <div id="turn-indicator"></div>
+  <div id="grid"></div>
+
+  <script src="wolf-ai.js" defer></script>
+  <script src="game.js" defer></script>
 </body>
+
 </html>
