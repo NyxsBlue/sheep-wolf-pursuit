@@ -173,3 +173,106 @@ function computeWolfMoveMinimax(gridSize, wolf, sheep, obstacles = [], depth = 5
 
   return bestMove;
 }
+
+// Tier 3: Backward induction / retrograde analysis.
+// Solves the FULL game up front for a given obstacle layout.
+// Returns { table, fullySolved } — table maps state key -> turns-to-capture.
+function solveOptimalPursuit(gridSize, obstacles) {
+  const isObstacle = (r, c) => obstacles.some(o => o.row === r && o.col === c);
+  const stateKey = (wolf, sheep, turn) => `${wolf.row},${wolf.col},${sheep.row},${sheep.col},${turn}`;
+
+  const cells = [];
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      if (!isObstacle(r, c)) cells.push({ row: r, col: c });
+    }
+  }
+
+  const table = new Map(); // stateKey -> turns to capture
+  const queue = [];
+
+  // Terminal states: wolf and sheep on the same cell, for BOTH turn values.
+  for (const pos of cells) {
+    for (const turn of ['wolf', 'sheep']) {
+      const key = stateKey(pos, pos, turn);
+      table.set(key, 0);
+      queue.push({ wolf: pos, sheep: pos, turn, value: 0 });
+    }
+  }
+
+  // Predecessor generator: given a state, find all states that could lead INTO it.
+  function predecessors(wolf, sheep, turn) {
+    // If it's currently sheep's turn, the predecessor had wolf's turn,
+    // and the WOLF moved from some neighbor into `wolf`'s current cell.
+    // If it's currently wolf's turn, the predecessor had sheep's turn,
+    // and the SHEEP moved from some neighbor into `sheep`'s current cell.
+    const preds = [];
+    const mover = turn === 'sheep' ? 'wolf' : 'sheep';
+    const moverPos = mover === 'wolf' ? wolf : sheep;
+
+   
+
+    // Simpler: predecessor's moving piece was at some neighbor of moverPos.
+    const neighbors = generateMoves(moverPos, obstacles, gridSize);
+    for (const n of neighbors) {
+      if (mover === 'wolf') {
+        preds.push({ wolf: n, sheep, turn: mover });
+      } else {
+        preds.push({ wolf, sheep: n, turn: mover });
+      }
+    }
+    return preds;
+  }
+
+  // Track, for sheep-turn states, how many of the sheep's moves are confirmed "losing" so far.
+  const sheepMoveCounts = new Map();
+
+  while (queue.length > 0) {
+    const { wolf, sheep, turn, value } = queue.shift();
+
+    for (const pred of predecessors(wolf, sheep, turn)) {
+      const predKey = stateKey(pred.wolf, pred.sheep, pred.turn);
+      if (table.has(predKey)) continue; // already solved
+
+      if (pred.turn === 'wolf') {
+        // Wolf just needs ONE move leading to a solved state — solve immediately.
+        table.set(predKey, value + 1);
+        queue.push({ wolf: pred.wolf, sheep: pred.sheep, turn: pred.turn, value: value + 1 });
+      } else {
+        // Sheep-turn predecessor: only solve once ALL sheep moves lead to solved wolf-turn states.
+        const totalMoves = generateMoves(pred.sheep, obstacles, gridSize).length;
+        const seen = (sheepMoveCounts.get(predKey) || 0) + 1;
+        sheepMoveCounts.set(predKey, seen);
+        if (seen >= totalMoves) {
+          table.set(predKey, value + 1);
+          queue.push({ wolf: pred.wolf, sheep: pred.sheep, turn: pred.turn, value: value + 1 });
+        }
+      }
+    }
+  }
+
+  const totalStates = cells.length * cells.length * 2;
+  const fullySolved = table.size === totalStates;
+
+  return { table, fullySolved, stateKey };
+}
+
+// Tier 3: uses a pre-solved table to pick the move that minimizes turns-to-capture.
+function computeWolfMoveOptimal(gridSize, wolf, sheep, obstacles, solved) {
+  const moves = generateMoves(wolf, obstacles, gridSize);
+  if (moves.length === 0) return null;
+
+  let bestMove = null;
+  let bestValue = Infinity;
+
+  for (const move of moves) {
+    const key = solved.stateKey(move, sheep, 'sheep'); // after wolf moves, it's sheep's turn
+    const value = solved.table.has(key) ? solved.table.get(key) : Infinity;
+    if (value < bestValue) {
+      bestValue = value;
+      bestMove = move;
+    }
+  }
+
+  return bestMove;
+}

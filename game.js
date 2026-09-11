@@ -1,12 +1,15 @@
+const MAX_OBSTACLE_ATTEMPTS = 50;
+let solvedPursuit = null;
 const GRID_SIZE = 10;
-const GRASS_COUNT = 6;
+const GRASS_COUNT = 10;
 const OBSTACLE_COUNT = 8;
+const MIN_START_DISTANCE = 4;
 
 const state = {
-  sheep: { row: Math.floor(GRID_SIZE / 2), col: Math.floor(GRID_SIZE / 2) },
+  sheep: { row: 0, col: 0 },
   wolf: { row: 0, col: 0 },
   grass: [],
-  obstacles: [],          // <-- new
+  obstacles: [],
   score: 0,
   turn: 'sheep',
   gameOver: false,
@@ -48,6 +51,31 @@ function placeObstacles() {
   }
 }
 
+function placeSheepAndWolf() {
+  const isObstacle = (r, c) => state.obstacles.some(o => o.row === r && o.col === c);
+
+  let sheepPos;
+  do {
+    sheepPos = { row: Math.floor(Math.random() * GRID_SIZE), col: Math.floor(Math.random() * GRID_SIZE) };
+  } while (isObstacle(sheepPos.row, sheepPos.col));
+
+  state.sheep.row = sheepPos.row;
+  state.sheep.col = sheepPos.col;
+
+  let wolfPos;
+  let attempts = 0;
+  do {
+    wolfPos = { row: Math.floor(Math.random() * GRID_SIZE), col: Math.floor(Math.random() * GRID_SIZE) };
+    attempts++;
+  } while (
+    attempts < 1000 &&
+    (isObstacle(wolfPos.row, wolfPos.col) || manhattanDistance(wolfPos, sheepPos) < MIN_START_DISTANCE)
+  );
+
+  state.wolf.row = wolfPos.row;
+  state.wolf.col = wolfPos.col;
+}
+
 function placeGrass() {
   state.grass = [];
   while (state.grass.length < GRASS_COUNT) {
@@ -58,7 +86,18 @@ function placeGrass() {
     state.grass.push({ row, col });
   }
 }
-
+function setupObstaclesAndSolve() {
+  for (let attempt = 0; attempt < MAX_OBSTACLE_ATTEMPTS; attempt++) {
+    placeObstacles();
+    const result = solveOptimalPursuit(GRID_SIZE, state.obstacles);
+    if (result.fullySolved) {
+      solvedPursuit = result;
+      return;
+    }
+  }
+  console.warn('Could not find a fully solvable obstacle layout after', MAX_OBSTACLE_ATTEMPTS, 'attempts.');
+  solvedPursuit = null;
+}
 function renderTokens() {
   document.querySelectorAll('.cell').forEach(cell => cell.textContent = '');
   for (const o of state.obstacles) {
@@ -129,11 +168,17 @@ function moveSheep(deltaRow, deltaCol) {
 
   setTimeout(() => {
   if (state.gameOver) return;
-
   const difficulty = document.getElementById('difficulty').value;
-  const wolfMove = difficulty === 'medium'
-    ? computeWolfMoveMinimax(GRID_SIZE, state.wolf, state.sheep, state.obstacles, 5)
-    : computeWolfMove(GRID_SIZE, state.wolf, state.sheep, state.obstacles);
+  let wolfMove;
+  if (difficulty === 'hard' && solvedPursuit) {
+    wolfMove = computeWolfMoveOptimal(GRID_SIZE, state.wolf, state.sheep, state.obstacles, solvedPursuit);
+  } else if (difficulty === 'medium') {
+    wolfMove = computeWolfMoveMinimax(GRID_SIZE, state.wolf, state.sheep, state.obstacles, 5);
+  } else if (difficulty === 'hard' && !solvedPursuit) {
+    wolfMove = computeWolfMoveMinimax(GRID_SIZE, state.wolf, state.sheep, state.obstacles, 5); // fallback
+  } else {
+    wolfMove = computeWolfMove(GRID_SIZE, state.wolf, state.sheep, state.obstacles);
+  }
   if (wolfMove) {
     state.wolf.row = wolfMove.row;
     state.wolf.col = wolfMove.col;
@@ -153,7 +198,12 @@ renderTurnIndicator();
 
 }
 
+
+
 document.addEventListener('keydown', (e) => {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+    e.preventDefault();
+  }
   switch (e.key) {
     case 'ArrowUp': moveSheep(-1, 0); break;
     case 'ArrowDown': moveSheep(1, 0); break;
@@ -163,7 +213,8 @@ document.addEventListener('keydown', (e) => {
 });
 
 renderGrid();
-placeObstacles();
+setupObstaclesAndSolve();
+placeSheepAndWolf();
 placeGrass();
 renderTokens();
 renderTurnIndicator();
